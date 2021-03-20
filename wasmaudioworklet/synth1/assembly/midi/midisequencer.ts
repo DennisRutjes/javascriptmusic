@@ -1,80 +1,51 @@
-/**
- * Simple single track midisequencer
- */
-
 import { SAMPLERATE } from "../environment";
-import { fillSampleBuffer, sampleBufferFrames, shortmessage } from "./midisynth";
+import { MidiSequencerPart } from "./midisequencerpart";
+import { fillSampleBuffer, sampleBufferFrames } from "./midisynth";
 
-let eventlist: u8[];
+export const midiparts: MidiSequencerPart[] = new Array<MidiSequencerPart>();
 
-export let currentEventTime: i32 = 0;
-export let currentEventIndex: i32 = 0;
+export class MidiSequencerPartSchedule {
+    public endTime: i32;
+
+    constructor(public midipartindex: i32,
+        public startTime: i32) {
+        this.endTime = midiparts[midipartindex].lastEventTime + startTime;
+    }
+}
+
+export const midipartschedule: MidiSequencerPartSchedule[] = new Array<MidiSequencerPartSchedule>();
+
 export let currentTimeMillis: f64 = 0;
 
-export function setEventList(evtlist: u8[]): void {
-    eventlist = evtlist;
-}
-
-export function playEvents(targetTime: i32): void {
-    let ndx = currentEventIndex;
-
-    while (ndx < eventlist.length) {
-        let deltaTime: i32 = 0;
-        let deltaTimePart: u8;
-
-        let shiftamount: u8 = 0;
-        do {
-            deltaTimePart = eventlist[ndx++];
-            deltaTime += (((deltaTimePart & 0x7f) as i32) << shiftamount);
-            shiftamount += 7;
-        } while (deltaTimePart & 0x80);
-
-        const newTime = currentEventTime + deltaTime;
-
-        if (newTime <= targetTime) {
-            shortmessage(eventlist[ndx++], eventlist[ndx++], eventlist[ndx++]);
-
-            currentEventTime = newTime;
-            currentEventIndex = ndx;
+export function seek(time: i32): void {
+    currentTimeMillis = time as f64;
+    for (let ndx = 0;
+        ndx < midipartschedule.length;
+        ndx++) {
+        const scheduleEntry = midipartschedule[ndx];
+        const midiSequencerPart = midiparts[scheduleEntry.midipartindex];
+        if (scheduleEntry.endTime >= currentTimeMillis && scheduleEntry.startTime <= currentTimeMillis) {
+            midiSequencerPart.seek(Math.round(currentTimeMillis) as i32 - scheduleEntry.startTime);
         } else {
-            break;
+            midiSequencerPart.seek(0);
         }
     }
 }
 
-export function seek(targetTime: i32): void {
-    currentEventIndex = 0;
-    currentEventTime = 0;
-    let ndx = currentEventIndex;
-
-    while (ndx < eventlist.length) {
-        let deltaTime: i32 = 0;
-        let deltaTimePart: u8;
-
-        let shiftamount: u8 = 0;
-        do {
-            deltaTimePart = eventlist[ndx++];
-            deltaTime += ((deltaTimePart & 0x7f) << shiftamount);
-            shiftamount += 7;
-        } while (deltaTimePart & 0x80);
-
-        const newTime = currentEventTime + deltaTime;
-
-        if (newTime < targetTime) {
-            ndx += 3;
-            currentEventTime = newTime;
-            currentEventIndex = ndx;
-        } else if (newTime === targetTime) {
-            currentEventTime = newTime;
-        } else {
-            break;
+export function playMidiPartEvents(): void {
+    for (let ndx = 0;
+        ndx < midipartschedule.length;
+        ndx++) {
+        const scheduleEntry = midipartschedule[ndx];
+        const midiSequencerPart = midiparts[scheduleEntry.midipartindex];
+        if (scheduleEntry.endTime >= currentTimeMillis && scheduleEntry.startTime <= currentTimeMillis) {
+            midiSequencerPart.playEvents(Math.round(currentTimeMillis) as i32 - scheduleEntry.startTime);
         }
     }
-    currentTimeMillis = targetTime;
 }
 
 export function playEventsAndFillSampleBuffer(): void {
-    playEvents(Math.round(currentTimeMillis) as i32);
+    playMidiPartEvents();
     fillSampleBuffer();
     currentTimeMillis += ((sampleBufferFrames * 1000) as f64 / SAMPLERATE);
 }

@@ -1,8 +1,9 @@
 import { SAMPLERATE } from "../../environment";
-import { currentEventIndex, currentEventTime, currentTimeMillis, playEvents, setEventList, seek, playEventsAndFillSampleBuffer } from "../../midi/midisequencer";
+import { seek, playEventsAndFillSampleBuffer, midiparts, midipartschedule, MidiSequencerPartSchedule, currentTimeMillis } from "../../midi/midisequencer";
 import { samplebuffer } from "../../midi/midisynth";
+import { MidiSequencerPart } from "../../midi/midisequencerpart";
 
-describe("midisynth", () => {
+describe("midisequencer", () => {
     it("should play the sequencer", () => {
         const eventlist: u8[] = [
             0x00, 0x90, 0x40, 0x64,
@@ -10,29 +11,28 @@ describe("midisynth", () => {
             0x40, 0x90, 0x40, 0x64, // time = 0xc0
             0x80, 0x01, 0x80, 0x40, 0x00 // time = 0x140
         ];
+        const midiSequencerPart = new MidiSequencerPart(eventlist);
+        
+        midiSequencerPart.playEvents(0x40);
 
-        setEventList(eventlist);
+        expect(midiSequencerPart.currentEventTime).toBe(0);
+        expect(midiSequencerPart.currentEventIndex).toBe(4);
 
-        playEvents(0x40);
+        midiSequencerPart.playEvents(0x80);
+        expect(midiSequencerPart.currentEventTime).toBe(0x80);
+        expect(midiSequencerPart.currentEventIndex).toBe(9);
 
-        expect(currentEventTime).toBe(0);
-        expect(currentEventIndex).toBe(4);
+        midiSequencerPart.playEvents(0xa0);
+        expect(midiSequencerPart.currentEventTime).toBe(0x80);
+        expect(midiSequencerPart.currentEventIndex).toBe(9);
 
-        playEvents(0x80);
-        expect(currentEventTime).toBe(0x80);
-        expect(currentEventIndex).toBe(9);
+        midiSequencerPart.playEvents(0xc0);
+        expect(midiSequencerPart.currentEventTime).toBe(0xc0);
+        expect(midiSequencerPart.currentEventIndex).toBe(13);
 
-        playEvents(0xa0);
-        expect(currentEventTime).toBe(0x80);
-        expect(currentEventIndex).toBe(9);
-
-        playEvents(0xc0);
-        expect(currentEventTime).toBe(0xc0);
-        expect(currentEventIndex).toBe(13);
-
-        playEvents(0x141);
-        expect(currentEventTime).toBe(0x140);
-        expect(currentEventIndex).toBe(18);
+        midiSequencerPart.playEvents(0x141);
+        expect(midiSequencerPart.currentEventTime).toBe(0x140);
+        expect(midiSequencerPart.currentEventIndex).toBe(18);
 
     });
 
@@ -45,44 +45,56 @@ describe("midisynth", () => {
             0x80, 0x01, 0x80, 0x40, 0x00 // time = 0x140, ndx 13
         ]; // ndx = 18
 
-        setEventList(eventlist);
+        const midiSequencerPart = new MidiSequencerPart(eventlist);
 
-        seek(0x40);
+        midiSequencerPart.seek(0x40);
 
-        expect(currentEventTime).toBe(0);
-        expect(currentEventIndex).toBe(4);
+        expect(midiSequencerPart.currentEventTime).toBe(0);
+        expect(midiSequencerPart.currentEventIndex).toBe(4);
 
-        seek(0x80);
-        expect(currentEventTime).toBe(0x80);
-        expect(currentEventIndex).toBe(4);
+        midiSequencerPart.seek(0x80);
+        expect(midiSequencerPart.currentEventTime).toBe(0x80);
+        expect(midiSequencerPart.currentEventIndex).toBe(4);
 
-        seek(0x40);
+        midiSequencerPart.seek(0x40);
 
-        expect(currentEventTime).toBe(0);
-        expect(currentEventIndex).toBe(4);
+        expect(midiSequencerPart.currentEventTime).toBe(0);
+        expect(midiSequencerPart.currentEventIndex).toBe(4);
 
-        seek(0xa0);
-        expect(currentEventTime).toBe(0x80);
-        expect(currentEventIndex).toBe(9);
-        expect(currentTimeMillis).toBe(0xa0);
+        midiSequencerPart.seek(0xa0);
+        expect(midiSequencerPart.currentEventTime).toBe(0x80);
+        expect(midiSequencerPart.currentEventIndex).toBe(9);
 
-        seek(0xc0);
-        expect(currentEventTime).toBe(0xc0);
-        expect(currentEventIndex).toBe(9);
+        midiSequencerPart.seek(0xc0);
+        expect(midiSequencerPart.currentEventTime).toBe(0xc0);
+        expect(midiSequencerPart.currentEventIndex).toBe(9);
 
-        seek(0x140);
-        expect(currentEventTime).toBe(0x140);
-        expect(currentEventIndex).toBe(13);
+        midiSequencerPart.seek(0x140);
+        expect(midiSequencerPart.currentEventTime).toBe(0x140);
+        expect(midiSequencerPart.currentEventIndex).toBe(13);
 
-        seek(0xa0);
-        expect(currentEventTime).toBe(0x80);
-        expect(currentEventIndex).toBe(9);
+        midiSequencerPart.seek(0xa0);
+        expect(midiSequencerPart.currentEventTime).toBe(0x80);
+        expect(midiSequencerPart.currentEventIndex).toBe(9);
 
-        seek(0x0);
-        expect(currentEventIndex).toBe(0);
-        expect(currentEventTime).toBe(0);
+        midiSequencerPart.seek(0x0);
+        expect(midiSequencerPart.currentEventIndex).toBe(0);
+        expect(midiSequencerPart.currentEventTime).toBe(0);
     });
     it('should play the song and fill the samplebuffer', () => {
+        const eventlist: u8[] = [
+            0x00, 0x90, 0x40, 0x64,
+            0x80, 0x01, 0x80, 0x40, 0x00, // time = 0x80, ndx 4
+            0x40, 0x90, 0x40, 0x64, // time = 0xc0, ndx 9
+            0x80, 0x01, 0x80, 0x40, 0x00 // time = 0x140, ndx 13
+        ]; // ndx = 18
+
+        const midiSequencerPart = new MidiSequencerPart(eventlist);
+        midiparts.push(midiSequencerPart);
+        midipartschedule.push(new MidiSequencerPartSchedule(0, 0));
+        expect(midiparts.length).toBe(1);
+        expect(midipartschedule.length).toBe(1);
+
         seek(0x0);
         expect(currentTimeMillis).toBe(0);
         expect(samplebuffer[1]).toBe(0);
@@ -109,12 +121,21 @@ describe("midisynth", () => {
             1, 145, 66, 100,
             217, 6, 129, 66, 0
         ];
-        setEventList(eventlist);
+        const millisecondsBetweenEvents = 857;
+        const midiSequencerPart = new MidiSequencerPart(eventlist);
+        midiparts[0] = midiSequencerPart;
+        midipartschedule[0] = new MidiSequencerPartSchedule(0, 0);
+        expect(midiparts.length).toBe(1);
+        expect(midipartschedule.length).toBe(1);
+        expect(midipartschedule[0].endTime).toBe(midiSequencerPart.lastEventTime);
+        expect(midiSequencerPart.lastEventTime).toBe(millisecondsBetweenEvents * 8 + 1);
+
         seek(0x0);
         for (let n = 0; n < 300; n++) {
             expect(currentTimeMillis).toBeCloseTo((((n * 128.0) / SAMPLERATE) * 1000.0));
             playEventsAndFillSampleBuffer();
-            expect(currentEventIndex).toBe(((Math.floor((currentTimeMillis - 2.9) / 857) * 9) + 4) as i32);
+            expect(midiSequencerPart.currentEventIndex)
+                .toBe(((Math.floor((currentTimeMillis - 2.9) / 857) * 9) + 4) as i32);
         }
     });
 });

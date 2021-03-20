@@ -7,15 +7,21 @@ export let instrumentNames = [];
 let loopPromise;
 
 export let recordingStartTimeMillis = 0;
+let muted = {};
+let solo = {};
 
 const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
 const output = {
     sendMessage: (msg) => {
-
-        songmessages.push({
-            time: currentTime(),
-            message: msg
-        });
+        const ch = msg[0] & 0x0f;
+        if (msg.length !==3 ||
+            (!muted[ch] && !Object.keys(solo).length || solo[ch])
+        ) {
+            songmessages.push({
+                time: currentTime(),
+                message: msg
+            });
+        }
     }
 };
 
@@ -52,6 +58,8 @@ const songargs = {
     'waitForBeat': waitForBeat,
     'startRecording': startRecording,
     'stopRecording': stopRecording,
+    'mute': (channel) => muted[channel] = true,
+    'solo': (channel) => solo[channel] = true,
     'addInstrument': (instrument) => instrumentNames.push(instrument)
 };
 Object.assign(songargs, createNoteFunctions());
@@ -60,6 +68,8 @@ const songargkeys = Object.keys(songargs);
 export async function compileSong(songsource) {
     songmessages = [];
     instrumentNames = [];
+    muted = {};
+    solo = {};
 
     console.log('compile song');
     resetTick();

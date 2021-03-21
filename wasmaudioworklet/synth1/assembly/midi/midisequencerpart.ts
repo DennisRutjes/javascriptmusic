@@ -3,6 +3,7 @@ import { shortmessage } from "./midisynth";
 export class MidiSequencerPart {
     currentEventTime: i32 = 0;
     currentEventIndex: i32 = 0;
+    previousTargetTime: i32 = 0;
     lastEventTime: i32 = 0;
 
     constructor(public eventlist: u8[]) {
@@ -24,6 +25,11 @@ export class MidiSequencerPart {
     }
 
     playEvents(targetTime: i32): void {
+        if (targetTime < this.previousTargetTime) {
+            this.currentEventTime = 0;
+            this.currentEventIndex = 0;
+        }
+        this.previousTargetTime = targetTime;
         let ndx = this.currentEventIndex;
 
         while (ndx < this.eventlist.length) {

@@ -139,7 +139,8 @@ describe("midisequencer", () => {
             857 * 5, 49,
             857 * 6, 58,
             857 * 7, 63,
-            857 * 7 + 10, 67
+            857 * 7 + 10, 67,
+            857 * 8 + 10, midiSequencerPart.eventlist.length
         ];
         
         let expectedNdx = 0;
@@ -195,7 +196,7 @@ describe("midisequencer", () => {
         
         let expectedNdx = 0;
         seek(0x0);
-        for (let n = 0; currentTimeMillis < midiSequencerPart.lastEventTime * 2; n++) {
+        for (let n = 0; currentTimeMillis < midiSequencerPart.lastEventTime * 3; n++) {
             const expectedCurrentTime = (((n * 128.0) / SAMPLERATE) * 1000.0);
 
             expect(currentTimeMillis).toBeCloseTo(expectedCurrentTime);
@@ -209,4 +210,78 @@ describe("midisequencer", () => {
         }
         expect(expectedNdx).toBe(expectedTimesAndIndices.length, 'not expected events passed');
     });
+    it('should schedule midi parts simultaneously', () => {
+        const millisecondsBetweenEvents = 857;
+        const eventlist: u8[] = [
+            50, 145, 66, 100,
+            138, 10, 129, 66, 0, // 1290
+            50, 145, 66, 100,
+            148, 10, 129, 66, 0 // 1300
+        ];
+        const otherMidiSequencerPart = new MidiSequencerPart(eventlist);
+        const midiSequencerPart = midiparts[0];
+        midiparts.push(otherMidiSequencerPart);
+        midipartschedule.push(new MidiSequencerPartSchedule(1, midiparts[0].lastEventTime));
+
+        expect(midiparts.length).toBe(2);
+        expect(midipartschedule.length).toBe(3);
+
+        expect(midipartschedule[0].endTime).toBe(midiSequencerPart.lastEventTime);
+        expect(midipartschedule[1].endTime).toBe(midiSequencerPart.lastEventTime + midipartschedule[0].endTime);
+        expect(midiSequencerPart.lastEventTime).toBe(millisecondsBetweenEvents * 8 + 10);
+        expect(midipartschedule[2].endTime).toBe(midipartschedule[0].endTime + midiparts[1].lastEventTime);
+
+        const expectedTimesAndIndices2 = [
+            midiSequencerPart.lastEventTime + 50, 4,
+            midiSequencerPart.lastEventTime + 1290 + 50, 9,
+            midiSequencerPart.lastEventTime + 1290 + 50 + 50, 13,
+            midiSequencerPart.lastEventTime + 1290 + 50 + 50 + 1300, 18
+        ];
+
+        const expectedTimesAndIndices = [
+            857 * 0, 4,
+            857 * 1, 13,
+            857 * 2, 22,
+            857 * 3, 31,
+            857 * 4, 40,
+            857 * 5, 49,
+            857 * 6, 58,
+            857 * 7, 63,
+            857 * 7 + 10, 67,
+            857 * 8 + 10, 4,
+            857 * 9 + 10, 13,
+            857 * 10 + 10, 22,
+            857 * 11 + 10, 31,
+            857 * 12 + 10, 40,
+            857 * 13 + 10, 49,
+            857 * 14 + 10, 58,
+            857 * 15 + 10, 63,
+            857 * 15 + 20, 67,
+            857 * 16 + 20, midiSequencerPart.eventlist.length
+        ];
+        
+        let expectedNdx = 0;
+        let otherExpectedNdx = 0;
+        seek(0x0);
+        for (let n = 0; currentTimeMillis < midiSequencerPart.lastEventTime * 4; n++) {
+            const expectedCurrentTime = (((n * 128.0) / SAMPLERATE) * 1000.0);
+
+            expect(currentTimeMillis).toBeCloseTo(expectedCurrentTime);
+            const previousEventIndex = midiSequencerPart.currentEventIndex;
+            const otherPreviousEventIndex = otherMidiSequencerPart.currentEventIndex;
+            playEventsAndFillSampleBuffer();
+            if (previousEventIndex !== midiSequencerPart.currentEventIndex) {
+                expect(midiSequencerPart.currentEventIndex).toBe(expectedTimesAndIndices[expectedNdx+1],'event index not matching');
+                expect(Math.abs(expectedCurrentTime - expectedTimesAndIndices[expectedNdx])).toBeLessThan(3);
+                expectedNdx += 2;
+            }
+            if (otherPreviousEventIndex !== otherMidiSequencerPart.currentEventIndex) {
+                expect(otherMidiSequencerPart.currentEventIndex).toBe(expectedTimesAndIndices2[otherExpectedNdx+1],'event index not matching 2. current time '+expectedCurrentTime.toString());
+                expect(Math.abs(expectedCurrentTime - expectedTimesAndIndices2[otherExpectedNdx])).toBeLessThan(3);
+                otherExpectedNdx += 2;
+            }
+        }
+        expect(expectedNdx).toBe(expectedTimesAndIndices.length, 'number of expected events not matching');
+        expect(otherExpectedNdx).toBe(expectedTimesAndIndices2.length, 'number of expected events not matching 2');
+    });    
 });

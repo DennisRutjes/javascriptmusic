@@ -10,6 +10,8 @@ export let recordingStartTimeMillis = 0;
 let muted = {};
 let solo = {};
 
+let trackerPatterns = [];
+
 const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
 const output = {
     sendMessage: (msg) => {
@@ -49,8 +51,21 @@ const songargs = {
     'output': output,
     'setBPM': setBPM,
     'TrackerPattern': TrackerPattern,
-    'createTrack': (channel, stepsperbeat, defaultvelocity) =>
-        new TrackerPattern(output, channel, stepsperbeat, defaultvelocity),
+    'createTrack': (channel, stepsperbeat, defaultvelocity) => {
+        const trackerPattern = new TrackerPattern({
+            startTime: currentTime(),
+            midievents: [],
+            sendMessage: function(msg) {
+                this.midievents.push({
+                    time: currentTime()-this.startTime,
+                    message: msg
+                });
+                output.sendMessage(msg);
+            }
+        }, channel, stepsperbeat, defaultvelocity);
+        trackerPatterns.push(trackerPattern);
+        return trackerPattern;
+    },
     'playFromHere': playFromHere,
     'loopHere': loopHere,
     'pitchbend': pitchbend,
@@ -68,6 +83,7 @@ const songargkeys = Object.keys(songargs);
 export async function compileSong(songsource) {
     songmessages = [];
     instrumentNames = [];
+    trackerPatterns = [];
     muted = {};
     solo = {};
 
@@ -126,4 +142,36 @@ export function convertEventListToByteArraySequence(eventlist) {
 
             return deltatimearr.concat(evt.message);
         }).reduce((prev, curr) => prev.concat(curr), []));
+}
+
+export function createMultipatternSequence() {
+    // console.log(trackerPatterns.map(p => p.output.midievents.map(m => m.time)));
+    const outputPatterns = [];
+    for (let n = 0;n<trackerPatterns.length; n++) {
+        if (trackerPatterns[n]) {
+            const pattern = trackerPatterns[n];
+            const outputPattern = { eventlist: convertEventListToByteArraySequence(pattern.output.midievents),
+                    startTimes: [pattern.output.startTime],
+                    channel: pattern.channel
+                };
+            trackerPatterns.forEach((p, ndx) => {
+                if(ndx > n &&
+                    p &&
+                    p.output.midievents.length === pattern.output.midievents.length &&
+                    p.output.midievents.reduce((prevstate, midievent, midievtndx) =>
+                        prevstate &&
+                        (midievent.time - pattern.output.midievents[midievtndx].time) < 2 &&
+                        midievent.message.reduce((pstate, msg, msgndx) => 
+                            pstate && msg === pattern.output.midievents[midievtndx].message[msgndx]
+                        , true),
+                        true)
+                ) {
+                    trackerPatterns[ndx] = null;
+                    outputPattern.startTimes.push(p.output.startTime);
+                }
+            });
+            outputPatterns.push(outputPattern);
+        }
+    }
+    return outputPatterns;
 }

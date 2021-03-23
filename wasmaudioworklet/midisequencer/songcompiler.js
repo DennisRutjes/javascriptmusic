@@ -145,7 +145,6 @@ export function convertEventListToByteArraySequence(eventlist) {
 }
 
 export function createMultipatternSequence() {
-    // console.log(trackerPatterns.map(p => p.output.midievents.map(m => m.time)));
     const outputPatterns = [];
     for (let n = 0;n<trackerPatterns.length; n++) {
         if (trackerPatterns[n]) {

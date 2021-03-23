@@ -1,7 +1,9 @@
 import { SAMPLERATE } from "../../environment";
-import { seek, playEventsAndFillSampleBuffer, midiparts, midipartschedule, MidiSequencerPartSchedule, currentTimeMillis } from "../../midi/midisequencer";
+import { seek, playEventsAndFillSampleBuffer, currentTimeMillis } from "../../midi/sequencer/midisequencer";
+import { MidiSequencerPartSchedule } from "../../midi/sequencer/midisequencerpart";
+import { midiparts, midipartschedule } from "../../midi/sequencer/midiparts";
 import { samplebuffer } from "../../midi/midisynth";
-import { MidiSequencerPart } from "../../midi/midisequencerpart";
+import { MidiSequencerPart } from "../../midi/sequencer/midisequencerpart";
 
 describe("midisequencer", () => {
     it("should play the sequencer", () => {

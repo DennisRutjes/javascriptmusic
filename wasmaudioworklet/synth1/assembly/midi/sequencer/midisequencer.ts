@@ -1,19 +1,8 @@
-import { SAMPLERATE } from "../environment";
-import { MidiSequencerPart } from "./midisequencerpart";
-import { fillSampleBuffer, sampleBufferFrames } from "./midisynth";
+import { SAMPLERATE } from "../../environment";
+import { midiparts, midipartschedule } from "./midiparts";
+import { fillSampleBuffer, sampleBufferFrames } from "../midisynth";
 
-export const midiparts: MidiSequencerPart[] = new Array<MidiSequencerPart>();
 const PLAY_EVENT_INTERVAL = ((sampleBufferFrames * 1000) as f64 / SAMPLERATE);
-export class MidiSequencerPartSchedule {
-    public endTime: i32;
-
-    constructor(public midipartindex: i32,
-        public startTime: i32) {
-        this.endTime = midiparts[midipartindex].lastEventTime + startTime;
-    }
-}
-
-export const midipartschedule: MidiSequencerPartSchedule[] = new Array<MidiSequencerPartSchedule>();
 
 export let currentTimeMillis: f64 = 0;
 

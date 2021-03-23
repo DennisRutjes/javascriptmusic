@@ -191,7 +191,7 @@ loopHere();
         assert.notEqual(eventlist.find(evt => evt.time === beatTime(16) && evt.message[0] === -1), undefined);
     }
     );
-    it.only('should create multipattern sequence', async () => {
+    it('should create multipattern sequence', async () => {
         const bpm = 110;
         const songsource = `
         setBPM(${bpm});
@@ -226,9 +226,7 @@ loopHere();
         await kickbeat();
         loopHere();
 `;
-        const beatTime = beatNo => Math.floor((beatNo / bpm) * 60 * 1000);
-
-        const eventlist = await compileSong(songsource);
+        await compileSong(songsource);
         const multipatternsequence = createMultipatternSequence();
         assert.equal(multipatternsequence.length, 4);
         assert.equal(multipatternsequence[0].startTimes.length, 1);

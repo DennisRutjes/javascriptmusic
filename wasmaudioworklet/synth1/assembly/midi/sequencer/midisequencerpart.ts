@@ -1,4 +1,5 @@
-import { shortmessage } from "./midisynth";
+import { midiparts } from "./midiparts";
+import { shortmessage } from "../midisynth";
 
 export class MidiSequencerPart {
     currentEventTime: i32 = 0;
@@ -84,5 +85,15 @@ export class MidiSequencerPart {
                 break;
             }
         }
+    }
+}
+
+export class MidiSequencerPartSchedule {
+    public endTime: i32
+
+    constructor(
+        public midipartindex: i32,
+        public startTime: i32) {
+            this.endTime = midiparts[midipartindex].lastEventTime + startTime;
     }
 }

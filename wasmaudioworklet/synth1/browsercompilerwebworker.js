@@ -57,7 +57,7 @@ function createWebAssemblySongData(song, mode = EXPORT_MODE_WASI_MAIN) {
             }];
         `;
         assemblyscriptsynthsources[wasi_main_src] = `
-            export { fillSampleBuffer, samplebuffer, allNotesOff, shortmessage } from './midi/midisynth';
+            export { fillSampleBuffer, samplebuffer, allNotesOff, shortmessage, activeVoicesStatusSnapshot } from './midi/midisynth';
             export { seek, playEventsAndFillSampleBuffer, currentTimeMillis } from './midi/sequencer/midisequencer';
         `;
     } else {

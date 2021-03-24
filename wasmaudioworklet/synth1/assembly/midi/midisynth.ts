@@ -9,6 +9,8 @@ const MAX_ACTIVE_VOICES = 1 << MAX_ACTIVE_VOICES_SHIFT;
 
 export const midichannels = new StaticArray<MidiChannel>(16);
 export const activeVoices = new StaticArray<MidiVoice | null>(MAX_ACTIVE_VOICES);
+export const activeVoicesStatusSnapshot = new StaticArray<u8>(MAX_ACTIVE_VOICES * 3);
+
 export let numActiveVoices = 0;
 export let voiceActivationCount = 0;
 
@@ -81,7 +83,13 @@ export class MidiChannel {
                 if (this.controllerValues[CONTROL_SUSTAIN] >= 64) {
                     this.sustainedVoices[this.sustainedVoicesIndex++] = voice;
                     this.sustainedVoicesIndex &= ((1 << MAX_ACTIVE_VOICES_SHIFT) - 1);
-                } else {
+                } else {                    
+                    if (voice.activeVoicesIndex >= 0) {
+                        const activeVoicesStatusSnapshotIndex = voice.activeVoicesIndex * 3;
+                        activeVoicesStatusSnapshot[activeVoicesStatusSnapshotIndex] = 0;
+                        activeVoicesStatusSnapshot[activeVoicesStatusSnapshotIndex + 1] = 0;
+                        activeVoicesStatusSnapshot[activeVoicesStatusSnapshotIndex + 2] = 0;
+                    }
                     voice.noteoff();
                 }
                 break;
@@ -214,6 +222,10 @@ export function shortmessage(val1: u8, val2: u8, val3: u8): void {
         if (activatedVoice !== null) {
             const voice = activatedVoice as MidiVoice;
             voice.noteon(val2, val3);
+            const activeVoicesStatusSnapshotIndex = voice.activeVoicesIndex * 3;
+            activeVoicesStatusSnapshot[activeVoicesStatusSnapshotIndex] = channel;
+            activeVoicesStatusSnapshot[activeVoicesStatusSnapshotIndex + 1] = val2;
+            activeVoicesStatusSnapshot[activeVoicesStatusSnapshotIndex + 2] = val3;
         }
     } else if (
         (command === 0x80 ||
@@ -231,6 +243,10 @@ export function allNotesOff(): void {
     for (let n = 0; n < numActiveVoices; n++) {
         const voice = activeVoices[n] as MidiVoice;
         voice.noteoff();
+        const activeVoicesStatusSnapshotIndex = n * 3;
+        activeVoicesStatusSnapshot[activeVoicesStatusSnapshotIndex] = 0;
+        activeVoicesStatusSnapshot[activeVoicesStatusSnapshotIndex + 1] = 0;
+        activeVoicesStatusSnapshot[activeVoicesStatusSnapshotIndex + 2] = 0;
     }
 }
 
